@@ -1,0 +1,90 @@
+@startuml message_flow_sequence
+skinparam backgroundColor #FEFEFE
+skinparam sequenceParticipantBackgroundColor #F4F4F4
+skinparam sequenceParticipantBorderColor #333333
+skinparam sequenceLifeLineBorderColor #888888
+skinparam sequenceArrowColor #555555
+skinparam sequenceGroupBackgroundColor #F0F0F0
+skinparam noteBorderColor #999999
+skinparam noteBackgroundColor #FFFFDD
+skinparam defaultFontName Monospaced
+
+title **RiddlerChat -- Encrypted Message Flow**
+
+actor "Alice\n(Sender)" as Alice
+participant "ChatService" as CS
+participant "PostQuantumCrypto\n(Context)" as PQ
+participant "Active Strategy\n(CryptoStrategyBase)" as Strat
+participant "SymmetricCrypto\n(AES-256-GCM)" as AES
+actor "Bob\n(Recipient)" as Bob
+
+== Connection & Key Exchange ==
+
+Alice -> CS : WebSocket connect
+activate CS
+
+CS -> PQ : hybrid_keygen()
+activate PQ
+PQ -> Strat : kem_keygen()
+activate Strat
+Strat --> PQ : (pq_pk, pq_sk)
+deactivate Strat
+PQ --> CS : {pq_keys, x25519_keys}
+deactivate PQ
+
+CS -> PQ : sig_keygen()
+activate PQ
+PQ -> Strat : sig_keygen()
+activate Strat
+Strat --> PQ : (sig_pk, sig_sk)
+deactivate Strat
+PQ --> CS : (sig_pk, sig_sk)
+deactivate PQ
+
+CS -> AES : new SymmetricCrypto()
+CS --> Alice : init {keys, fingerprint, circuit}
+
+== Sending an Encrypted Message ==
+
+Alice -> CS : send_message("Hello Bob")
+activate CS
+
+CS -> AES : encrypt(plaintext)
+activate AES
+note right of AES
+  Nonce: timestamp(4B)
+       + counter(4B)
+       + random(4B)
+  Output: nonce || ciphertext || tag
+end note
+AES --> CS : sealed_bytes (base64)
+deactivate AES
+
+CS -> PQ : sig_sign(sig_sk, plaintext)
+activate PQ
+PQ -> Strat : sig_sign(sk, msg)
+activate Strat
+Strat --> PQ : signature
+deactivate Strat
+PQ --> CS : signature (base64)
+deactivate PQ
+
+CS -> CS : store in thread
+
+CS -> Bob : deliver {ciphertext, signature, circuit_id}
+CS -> Alice : echo {ciphertext, signature, circuit_id}
+
+deactivate CS
+
+== Verification (Bob's side) ==
+
+Bob -> PQ : sig_verify(alice_sig_pk, msg, sig)
+activate PQ
+PQ -> Strat : sig_verify(pk, msg, sig)
+activate Strat
+Strat --> PQ : True
+deactivate Strat
+PQ --> Bob : Verified
+deactivate PQ
+
+@enduml

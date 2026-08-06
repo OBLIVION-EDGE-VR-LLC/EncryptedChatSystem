@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RiddlerChat</title>
+  <link rel="stylesheet" href="css/riddler.css">
+</head>
+<body>
+  <!-- ═══ TITLE BAR ═══ -->
+  <header class="titlebar" id="titlebar">
+    <div class="titlebar-left">
+      <div class="riddler-icon">?</div>
+      <div class="titlebar-brand">
+        <span class="brand-riddler">RIDDLER</span><span class="brand-chat">CHAT</span>
+        <div class="brand-sub">onion-routed · end-to-end sealed</div>
+      </div>
+    </div>
+    <div class="titlebar-center">
+      <div class="circuit-status" id="circuitStatus">
+        <span class="status-dot online"></span>
+        <span id="circuitHops">3-hop circuit</span> ·
+        <span id="circuitRtt">241ms rtt</span> |
+        <span id="opensslVersion">OpenSSL 3.3</span>
+      </div>
+    </div>
+    <div class="titlebar-right">
+      <button class="titlebar-btn" id="settingsBtn">⚙</button>
+      <button class="titlebar-btn" onclick="riddler.minimize()">−</button>
+      <button class="titlebar-btn" onclick="riddler.maximize()">○</button>
+      <button class="titlebar-btn close" onclick="riddler.close()">×</button>
+    </div>
+  </header>
+
+  <!-- ═══ MAIN LAYOUT ═══ -->
+  <div class="app-container">
+
+    <!-- ─── SIDEBAR ─── -->
+    <aside class="sidebar" id="sidebar">
+      <!-- User Profile Card -->
+      <div class="profile-card">
+        <div class="avatar avatar-self">
+          <span class="avatar-letter">?</span>
+          <span class="avatar-status online"></span>
+        </div>
+        <div class="profile-info">
+          <div class="profile-name" id="profileName">The Architect</div>
+          <div class="profile-meta">@<span id="profileAlias">you</span> · <span class="text-green">online</span></div>
+        </div>
+      </div>
+      <div class="pq-fingerprint">
+        <span class="label-dim">PQ FINGERPRINT</span>
+        <span class="fingerprint-value" id="pqFingerprint">A4F0·11C9·8E32</span>
+      </div>
+
+      <!-- Search -->
+      <div class="search-box">
+        <span class="search-icon">?</span>
+        <input type="text" id="contactSearch" placeholder="Riddle me a contact..." autocomplete="off">
+      </div>
+
+      <!-- Encrypted Threads -->
+      <div class="threads-header">
+        <span class="label-dim">ENCRYPTED THREADS</span>
+        <span class="thread-count" id="threadCount">0 sealed</span>
+      </div>
+
+      <div class="contact-list" id="contactList">
+        <!-- Contacts injected by JS -->
+      </div>
+
+      <!-- Entropy Status Bar -->
+      <div class="entropy-bar" id="entropyBar">
+        <div class="entropy-icon">▌▐▌</div>
+        <div class="entropy-info">
+          <div class="entropy-label" id="entropyLabel">TRNG entropy pool</div>
+          <div class="entropy-meta"><span id="entropyBits">256-bit</span> · <span id="entropySource">/dev/urandom</span> · <span id="entropyHealth" class="text-green">healthy</span></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ─── CHAT AREA ─── -->
+    <main class="chat-area" id="chatArea">
+
+      <!-- Chat Header -->
+      <div class="chat-header" id="chatHeader">
+        <div class="chat-header-left">
+          <div class="avatar avatar-contact" id="chatAvatar">
+            <span class="avatar-letter" id="chatAvatarLetter">O</span>
+          </div>
+          <div class="chat-header-info">
+            <div class="chat-header-name">
+              <span id="chatContactName">Select a contact</span>
+              <span class="pq-badge" id="pqBadge" style="display:none">✓ PQ-VERIFIED</span>
+            </div>
+            <div class="chat-header-meta" id="chatContactMeta"></div>
+          </div>
+        </div>
+        <div class="chat-header-right">
+          <button class="btn-circuit" id="btnCircuit" style="display:none">
+            <span class="status-dot online"></span> circuit
+          </button>
+          <button class="btn-icon" id="btnContactSettings" style="display:none">⚙</button>
+        </div>
+      </div>
+
+      <!-- Circuit Panel (collapsible) -->
+      <div class="circuit-panel" id="circuitPanel" style="display:none">
+        <div class="circuit-panel-header">
+          <span>◌ ONION CIRCUIT — <span id="relayCount">3</span> RELAYS</span>
+          <span class="circuit-encryption" id="circuitEncryption">AES-256-GCM per layer · ML-KEM-1024 sealed</span>
+        </div>
+        <div class="circuit-visualization" id="circuitViz">
+          <!-- Injected by JS -->
+        </div>
+        <div class="circuit-footer" id="circuitFooter">
+          ◌ Circuit established — keys derived via ML-KEM-1024 + X25519 hybrid
+        </div>
+      </div>
+
+      <!-- Messages -->
+      <div class="messages-container" id="messagesContainer">
+        <div class="messages-empty" id="messagesEmpty">
+          <div class="riddler-icon large">?</div>
+          <div class="empty-title">Select a thread to begin</div>
+          <div class="empty-sub">All messages are end-to-end encrypted with post-quantum algorithms</div>
+        </div>
+      </div>
+
+      <!-- Message Input -->
+      <div class="message-input-area" id="messageInputArea" style="display:none">
+        <div class="input-row">
+          <span class="input-lock">🔒</span>
+          <input type="text" id="messageInput" placeholder="Encrypt & route through 3 relays..."
+                 autocomplete="off" autofocus>
+          <button class="btn-send" id="btnSend">▶</button>
+        </div>
+        <div class="input-footer">
+          <span class="algo-tag">◌ ML-KEM-1024</span>
+          <span class="algo-tag">◌ ML-DSA-87 signed</span>
+          <span class="algo-tag">◌ AES-256-GCM</span>
+          <span class="algo-tag">◌ forward secrecy</span>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ═══ LOGIN OVERLAY ═══ -->
+  <div class="login-overlay" id="loginOverlay">
+    <div class="login-card">
+      <div class="riddler-icon xlarge">?</div>
+      <h1><span class="brand-riddler">RIDDLER</span><span class="brand-chat">CHAT</span></h1>
+      <p class="login-sub">Post-Quantum Encrypted Messenger</p>
+      <div class="login-field">
+        <label>IDENTITY</label>
+        <input type="text" id="loginUsername" placeholder="Enter alias..." autocomplete="off">
+      </div>
+      <div class="login-field">
+        <label>PASSPHRASE</label>
+        <input type="password" id="loginPassword" placeholder="Zero-knowledge proof..." autocomplete="off">
+      </div>
+      <button class="btn-login" id="btnLogin">AUTHENTICATE</button>
+      <div class="login-footer">
+        <span class="algo-tag">ML-KEM-1024</span>
+        <span class="algo-tag">ML-DSA-87</span>
+        <span class="algo-tag">ZKA</span>
+      </div>
+      <div class="login-error" id="loginError"></div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

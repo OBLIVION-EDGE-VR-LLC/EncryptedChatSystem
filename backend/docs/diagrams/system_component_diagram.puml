@@ -1,0 +1,84 @@
+@startuml system_component_diagram
+skinparam backgroundColor #FEFEFE
+skinparam componentBackgroundColor #F4F4F4
+skinparam componentBorderColor #333333
+skinparam packageBackgroundColor #FDFDFD
+skinparam packageBorderColor #AAAAAA
+skinparam interfaceBackgroundColor #E8E8E8
+skinparam arrowColor #555555
+skinparam noteBorderColor #999999
+skinparam noteBackgroundColor #FFFFDD
+skinparam defaultFontName Monospaced
+skinparam databaseBackgroundColor #F4F4F4
+
+title **RiddlerChat -- System Component Architecture**
+
+package "Electron Frontend" {
+    component [Chat UI] as UI
+    component [WebSocket Client] as WSC
+}
+
+package "FastAPI Backend (server.py)" {
+    component [REST API\n/api/status\n/api/auth/*\n/api/circuit/*] as REST
+    component [WebSocket Handler\n/ws/{username}] as WSH
+}
+
+package "Services Layer" {
+    component [ChatService\nMessage routing\nSession management] as CS
+    component [RelayService\nOnion circuit building\nLayer encryption] as RS
+    component [EntropyService\nTRNG/PRNG monitoring] as ES
+    component [ZeroKnowledgeAuth\nSchnorr ZKA protocol] as ZKA
+}
+
+package "Crypto Engine (Strategy Pattern)" {
+    component [PostQuantumCrypto\n<<Context>>] as PQC
+
+    package "Strategy Implementations" {
+        component [OQSProviderStrategy\nOpenSSL 3.x + oqs-provider\nML-KEM-1024 / ML-DSA-87] as OQS
+        component [LibOQSStrategy\nliboqs Python bindings\nML-KEM-1024 / ML-DSA-87] as LOQS
+        component [SimulatedStrategy\nX25519 / Ed25519\n(classical fallback)] as SIM
+    }
+
+    component [SymmetricCrypto\nAES-256-GCM\nHybrid nonce] as SYM
+    component [OpenSSLWrapper\nVersion detection\nTLS 1.3 context] as OSSL
+}
+
+package "External Libraries" {
+    component [oqs-provider-0.10.0\n(C shared library)] as OQSLIB
+    component [liboqs\n(C library + Python)] as LIBOQS
+    component [cryptography\n(pyca/cryptography)] as PYCA
+}
+
+database "users.json" as DB
+
+' Frontend connections
+UI --> WSC
+WSC --> WSH : WebSocket
+
+' Backend connections
+WSH --> CS
+REST --> CS
+REST --> ZKA
+REST --> RS
+REST --> ES
+
+' Service to crypto
+CS --> PQC : hybrid_keygen()\nsig_sign()\nsig_verify()
+CS --> SYM : encrypt()\ndecrypt()
+RS --> SYM : onion layer\nencrypt/decrypt
+
+' Context to strategies
+PQC --> OQS : <<delegates>>
+PQC --> LOQS : <<delegates>>
+PQC --> SIM : <<delegates>>
+
+' Strategies to external
+OQS --> OQSLIB : openssl CLI\n-provider oqsprovider
+LOQS --> LIBOQS : import oqs
+SIM --> PYCA : X25519\nEd25519
+
+' Other connections
+ZKA --> DB : read/write
+OSSL --> PYCA
+
+@enduml

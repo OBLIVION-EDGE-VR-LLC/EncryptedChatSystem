@@ -1,0 +1,118 @@
+@startuml hybrid_kex_sequence
+skinparam backgroundColor #FEFEFE
+skinparam sequenceParticipantBackgroundColor #F4F4F4
+skinparam sequenceParticipantBorderColor #333333
+skinparam sequenceLifeLineBorderColor #888888
+skinparam sequenceArrowColor #555555
+skinparam sequenceGroupBackgroundColor #F0F0F0
+skinparam noteBorderColor #999999
+skinparam noteBackgroundColor #FFFFDD
+skinparam defaultFontName Monospaced
+
+title **RiddlerChat -- Hybrid Key Exchange Protocol\n(ML-KEM-1024 + X25519)**
+
+participant "Alice" as A
+participant "PostQuantumCrypto\n(Context)" as PQ
+participant "Active Strategy" as S
+participant "X25519\n(Classical)" as X
+participant "HKDF-SHA256" as H
+participant "Bob" as B
+
+== Bob Generates Hybrid Keypair ==
+
+B -> PQ : hybrid_keygen()
+activate PQ
+
+PQ -> S : kem_keygen()
+activate S
+S --> PQ : (pq_pk, pq_sk)
+deactivate S
+
+PQ -> X : X25519PrivateKey.generate()
+activate X
+X --> PQ : (x25519_pk, x25519_sk)
+deactivate X
+
+PQ --> B : {pq_pk, pq_sk, x25519_pk, x25519_sk}
+deactivate PQ
+
+note over B
+  Bob publishes:
+    pq_pk, x25519_pk
+  Bob keeps secret:
+    pq_sk, x25519_sk
+end note
+
+== Alice Encapsulates to Bob ==
+
+A -> PQ : hybrid_encapsulate(bob.pq_pk, bob.x25519_pk)
+activate PQ
+
+PQ -> S : kem_encapsulate(bob.pq_pk)
+activate S
+S --> PQ : (pq_ciphertext, pq_shared_secret)
+deactivate S
+note right: 32-byte PQ shared secret
+
+PQ -> X : ephemeral X25519 exchange\nwith bob.x25519_pk
+activate X
+X --> PQ : x25519_shared_secret
+deactivate X
+note right: 32-byte classical shared secret
+
+PQ -> H : derive(pq_ss || x25519_ss)
+activate H
+note right
+  HKDF-SHA256
+  salt: None
+  info: "riddlerchat-hybrid-
+        mlkem1024-x25519"
+  length: 32 bytes
+end note
+H --> PQ : combined_shared_secret
+deactivate H
+
+PQ --> A : (ct_bundle, combined_secret)
+deactivate PQ
+
+note over A
+  ct_bundle = {
+    pq_ciphertext (base64),
+    x25519_ephemeral_pk (base64)
+  }
+end note
+
+A -> B : ct_bundle (over WebSocket)
+
+== Bob Decapsulates ==
+
+B -> PQ : hybrid_decapsulate(bob.keys, ct_bundle)
+activate PQ
+
+PQ -> S : kem_decapsulate(bob.pq_sk, pq_ciphertext)
+activate S
+S --> PQ : pq_shared_secret
+deactivate S
+
+PQ -> X : bob.x25519_sk.exchange(alice.eph_pk)
+activate X
+X --> PQ : x25519_shared_secret
+deactivate X
+
+PQ -> H : derive(pq_ss || x25519_ss)
+activate H
+H --> PQ : combined_shared_secret
+deactivate H
+
+PQ --> B : combined_shared_secret
+deactivate PQ
+
+note over A, B #DDFFDD
+  **Both parties now hold the identical 256-bit combined secret.**
+  This key is used for AES-256-GCM session encryption.
+
+  If ML-KEM is broken: X25519 still protects the session.
+  If X25519 is broken: ML-KEM still protects the session.
+end note
+
+@enduml

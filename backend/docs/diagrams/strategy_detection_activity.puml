@@ -1,0 +1,77 @@
+@startuml strategy_detection_activity
+skinparam backgroundColor #FEFEFE
+skinparam activityBackgroundColor #F4F4F4
+skinparam activityBorderColor #333333
+skinparam activityDiamondBackgroundColor #E8E8E8
+skinparam activityDiamondBorderColor #333333
+skinparam arrowColor #555555
+skinparam noteBorderColor #999999
+skinparam noteBackgroundColor #FFFFDD
+skinparam defaultFontName Monospaced
+
+title **RiddlerChat -- Strategy Auto-Detection Flow**
+
+start
+
+:PostQuantumCrypto()
+ instantiated;
+
+partition "Auto-Detection (Priority Order)" {
+
+    :Probe **OQSProviderStrategy**;
+    note right
+      Runs:
+      openssl list -kem-algorithms
+        -provider oqsprovider
+    end note
+
+    if (oqs-provider\navailable?) then (yes)
+        :Select **OQSProviderStrategy**;
+        note right
+          Real ML-KEM-1024
+          Real ML-DSA-87
+          via OpenSSL 3.x
+        end note
+        -> strategy selected;
+    else (no)
+
+        :Probe **LibOQSStrategy**;
+        note right
+          Runs:
+          import oqs
+          oqs.KeyEncapsulation(
+            "ML-KEM-1024")
+        end note
+
+        if (liboqs\navailable?) then (yes)
+            :Select **LibOQSStrategy**;
+            note right
+              Real ML-KEM-1024
+              Real ML-DSA-87
+              via Python bindings
+            end note
+            -> strategy selected;
+        else (no)
+
+            :Select **SimulatedStrategy**;
+            note right
+              X25519 (KEM stand-in)
+              Ed25519 (Sig stand-in)
+              Always available
+            end note
+            -> strategy selected;
+
+        endif
+    endif
+}
+
+:Store selected strategy
+ as self._strategy;
+
+:ChatService & server.py
+ delegate all PQ operations
+ through active strategy;
+
+stop
+
+@enduml

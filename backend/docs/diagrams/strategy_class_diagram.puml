@@ -1,0 +1,127 @@
+@startuml strategy_class_diagram
+skinparam backgroundColor #FEFEFE
+skinparam classBackgroundColor #F4F4F4
+skinparam classBorderColor #333333
+skinparam classFontSize 13
+skinparam arrowColor #555555
+skinparam stereotypeCBackgroundColor #E8E8E8
+skinparam noteBorderColor #999999
+skinparam noteBackgroundColor #FFFFDD
+skinparam packageBackgroundColor #FDFDFD
+skinparam packageBorderColor #AAAAAA
+skinparam defaultFontName Monospaced
+
+title **RiddlerChat -- GoF Strategy Pattern: Class Diagram**
+
+package "backend.crypto.strategy" {
+
+    abstract class CryptoStrategyBase <<Abstract Strategy>> {
+        - _kem_algorithm : str
+        - _sig_algorithm : str
+        - _available : bool
+        __
+        + {abstract} _probe() : bool
+        + {abstract} kem_keygen() : Tuple[bytes, bytes]
+        + {abstract} kem_encapsulate(pk: bytes) : Tuple[bytes, bytes]
+        + {abstract} kem_decapsulate(sk: bytes, ct: bytes) : bytes
+        + {abstract} sig_keygen() : Tuple[bytes, bytes]
+        + {abstract} sig_sign(sk: bytes, msg: bytes) : bytes
+        + {abstract} sig_verify(pk: bytes, msg: bytes, sig: bytes) : bool
+        __
+        + available : bool
+        + name : str
+        + get_info() : dict
+    }
+
+    class OQSProviderStrategy <<Concrete Strategy>> {
+        - _provider_path : str
+        - _openssl_bin : str
+        - _oqs_kem_name : str
+        - _oqs_sig_name : str
+        __
+        + _probe() : bool
+        - _provider_flags() : list
+        - _run_openssl(args, stdin) : CompletedProcess
+        __
+        Uses **oqs-provider-0.10.0**
+        via OpenSSL 3.x CLI
+        (mlkem1024, mldsa87)
+    }
+
+    class LibOQSStrategy <<Concrete Strategy>> {
+        __
+        + _probe() : bool
+        __
+        Uses **liboqs** Python bindings
+        (import oqs)
+        ML-KEM-1024, ML-DSA-87
+    }
+
+    class SimulatedStrategy <<Concrete Strategy>> {
+        __
+        + _probe() : bool
+        __
+        Classical stand-ins:
+        X25519 (KEM)
+        Ed25519 (Signatures)
+    }
+}
+
+package "backend.crypto" {
+    class PostQuantumCrypto <<Context>> {
+        - _strategy : CryptoStrategyBase
+        - _strategies : List[CryptoStrategyBase]
+        - _oqs_provider_path : str
+        __
+        + set_strategy(s: CryptoStrategyBase)
+        - _auto_detect() : CryptoStrategyBase
+        __
+        + kem_keygen()
+        + kem_encapsulate()
+        + kem_decapsulate()
+        + hybrid_keygen()
+        + hybrid_encapsulate()
+        + hybrid_decapsulate()
+        + sig_keygen()
+        + sig_sign()
+        + sig_verify()
+        + fingerprint()
+        __
+        + backend_name : str
+        + strategy : CryptoStrategyBase
+        + available_strategies : List[dict]
+    }
+}
+
+CryptoStrategyBase <|-- OQSProviderStrategy
+CryptoStrategyBase <|-- LibOQSStrategy
+CryptoStrategyBase <|-- SimulatedStrategy
+
+PostQuantumCrypto o--> "1" CryptoStrategyBase : delegates to
+
+note right of PostQuantumCrypto
+  **Context** auto-detects the
+  best available strategy at
+  startup. Strategy can be
+  switched at runtime via
+  set_strategy().
+end note
+
+note bottom of OQSProviderStrategy
+  Priority **1** (highest)
+  Requires: OpenSSL 3.x +
+  oqs-provider .so built
+end note
+
+note bottom of LibOQSStrategy
+  Priority **2**
+  Requires: pip install
+  liboqs-python
+end note
+
+note bottom of SimulatedStrategy
+  Priority **3** (fallback)
+  Always available
+end note
+
+@enduml

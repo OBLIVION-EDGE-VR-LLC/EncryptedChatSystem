@@ -6,8 +6,9 @@
  * 1337_TECH DBA, Austin Texas - 2026
  */
 
-const API_BASE = 'http://127.0.0.1:7576';
-const WS_BASE = 'ws://127.0.0.1:7576';
+const _server = window.__RIDDLER_SERVER__ || '127.0.0.1:7576';
+const API_BASE = `http://${_server}`;
+const WS_BASE = `ws://${_server}`;
 
 // ═══ STATE ═══
 const state = {

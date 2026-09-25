@@ -1,0 +1,19 @@
+# ═══════════════════════════════════════════
+# RiddlerChat Backend
+# docker compose up --build
+# ═══════════════════════════════════════════
+
+services:
+  backend:
+    build: .
+    ports:
+      - "7576:7576"
+    environment:
+      - RIDDLER_HOST=0.0.0.0
+      - RIDDLER_WS_PORT=7576
+    restart: unless-stopped
+    volumes:
+      - riddler-data:/app/backend/data
+
+volumes:
+  riddler-data:

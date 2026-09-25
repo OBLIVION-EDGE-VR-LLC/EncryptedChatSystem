@@ -1,0 +1,11 @@
+electron/
+chatclient/
+chatserver/
+venv/
+.git/
+.idea/
+.pytest_cache/
+__pycache__/
+*.pyc
+node_modules/
+.coverage
